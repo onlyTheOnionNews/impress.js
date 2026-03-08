@@ -175,7 +175,10 @@
 
         perspective: 1000,
 
-        transitionDuration: 1000
+        transitionDuration: 1000,
+
+        // If true, disables updating window.location.hash on step change
+        disableHashNavigation: false
     };
 
     // Configuration options
@@ -333,7 +336,10 @@
                 perspective: lib.util.toNumber( rootData.perspective, defaults.perspective ),
                 transitionDuration: lib.util.toNumber(
                     rootData.transitionDuration, defaults.transitionDuration
-                )
+                ),
+                disableHashNavigation: rootData.disableHashNavigation !== undefined
+                    ? rootData.disableHashNavigation !== "false"
+                    : defaults.disableHashNavigation
             };
         };
 
@@ -785,24 +791,29 @@
             // makes transition laggy.
             // BUG: http://code.google.com/p/chromium/issues/detail?id=62820
             lib.gc.addEventListener( root, "impress:stepenter", function( event ) {
-                window.location.hash = lastHash = "#/" + event.target.id;
-            }, false );
-
-            lib.gc.addEventListener( window, "hashchange", function() {
-
-                // When the step is entered hash in the location is updated
-                // (just few lines above from here), so the hash change is
-                // triggered and we would call `goto` again on the same element.
-                //
-                // To avoid this we store last entered hash and compare.
-                if ( window.location.hash !== lastHash ) {
-                    goto( lib.util.getElementFromHash() );
+                if ( !config.disableHashNavigation ) {
+                    window.location.hash = lastHash = "#/" + event.target.id;
                 }
             }, false );
 
+            if ( !config.disableHashNavigation ) {
+                lib.gc.addEventListener( window, "hashchange", function() {
+
+                    // When the step is entered hash in the location is updated
+                    // (just few lines above from here), so the hash change is
+                    // triggered and we would call `goto` again on the same element.
+                    //
+                    // To avoid this we store last entered hash and compare.
+                    if ( window.location.hash !== lastHash ) {
+                        goto( lib.util.getElementFromHash() );
+                    }
+                }, false );
+            }
+
             // START
             // by selecting step defined in url or first step of the presentation
-            goto( lib.util.getElementFromHash() || steps[ 0 ], 0 );
+            var initialStep = config.disableHashNavigation ? steps[ 0 ] : lib.util.getElementFromHash() || steps[ 0 ];
+            goto( initialStep, 0 );
         }, false );
 
         body.classList.add( "impress-disabled" );
