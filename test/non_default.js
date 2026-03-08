@@ -142,3 +142,54 @@ QUnit.test( "Non default root id, API tests", function( assert ) {
     }, "non-default-id" ); // InitPresentation()
   } ); // LoadIframe()
 } );
+
+QUnit.test( "disableHashNavigation option prevents URL hash updates", function( assert ) {
+  console.log( "Begin disableHashNavigation test" );
+
+  var doneInit = assert.async();
+  var doneStepEnter = assert.async();
+
+  loadIframe( "test/non_default_presentation.html", assert, function() {
+    var iframe = document.getElementById( "presentation-iframe" );
+    var iframeDoc = iframe.contentDocument;
+    var iframeWin = iframe.contentWindow;
+    var root = iframeDoc.querySelector( "div#impress" );
+
+    // Catch events triggered by init()
+    var assertInit = function() {
+      assert.ok( true, "impress:init event triggered." );
+
+      // Verify that disableHashNavigation config option is set
+      var config = iframeWin.impress().getConfig();
+      assert.strictEqual( config.disableHashNavigation, true,
+                          "disableHashNavigation config is true" );
+
+      doneInit();
+      console.log( "End disableHashNavigation test (async)" );
+    };
+
+    var assertInitWrapper = function() {
+      setTimeout( function() { assertInit(); }, 10 );
+    };
+    root.addEventListener( "impress:init", assertInitWrapper );
+
+    root.addEventListener( "impress:stepenter", function( event ) {
+      assert.ok( true, "impress:stepenter event triggered for " + event.target.id );
+
+      // When disableHashNavigation is true, the hash should NOT be updated
+      // After first step, hash should still be empty (or whatever it was before init)
+      var hash = iframeWin.location.hash;
+      assert.ok( hash === "" || hash === "#/",
+                 "Hash was not updated after step enter: " + hash );
+
+      doneStepEnter();
+    } );
+
+    // Synchronous code and assertions
+    assert.ok( iframeWin.impress,
+               "impress declared in global scope" );
+    assert.strictEqual( iframeWin.impress().init(), undefined,
+                        "impress().init() called." );
+
+  } ); // LoadIframe()
+} );
